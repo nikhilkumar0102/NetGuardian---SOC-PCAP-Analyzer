@@ -1,0 +1,20 @@
+# Web Framework
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# PCAP Processing
+scapy==2.5.0
+
+# Data Processing
+pandas==2.1.4
+
+# File type detection
+python-magic==0.4.27
+python-magic-bin==0.4.14  # For Windows
+
+# Utilities
+python-dateutil==2.8.2
+
+# Development (optional but recommended)
+pylint==3.0.3
+autopep8==2.0.4
