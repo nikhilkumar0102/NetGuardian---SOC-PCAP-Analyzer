@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Results - NetGuardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Header -->
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2 class="fw-bold mb-2" style="text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);">
+                    <i class="bi bi-graph-up-arrow me-2" style="color: var(--accent-primary);"></i>
+                    Analysis Results
+                </h2>
+                <p class="mb-0">
+                    <i class="bi bi-file-earmark-binary me-2"></i>
+                    {{ file_info.filename }}
+                    <span class="badge bg-secondary ms-2">{{ file_info.size_mb }} MB</span>
+                    <span class="ms-3 text-muted">
+                        <i class="bi bi-clock me-1"></i>
+                        {{ file_info.upload_time }}
+                    </span>
+                </p>
+            </div>
+            <div class="mt-3 mt-md-0">
+                <a href="{{ url_for('report') }}" class="btn btn-cyber me-2">
+                    <i class="bi bi-file-text me-2"></i>
+                    View Report
+                </a>
+                <a href="{{ url_for('clear_session') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>
+                    New Analysis
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="col-12 mb-4">
+        <div class="row g-3">
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 2rem; color: var(--accent-primary);"></i>
+                    <div class="stat-number">{{ results.summary.total_findings }}</div>
+                    <div class="stat-label">Total Findings</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <i class="bi bi-shield-fill-exclamation" style="font-size: 2rem; color: var(--accent-danger);"></i>
+                    <div class="stat-number" style="color: var(--accent-danger);">{{ results.summary.critical }}</div>
+                    <div class="stat-label">Critical</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <i class="bi bi-activity" style="font-size: 2rem; color: var(--accent-warning);"></i>
+                    <div class="stat-number" style="color: var(--accent-warning);">{{ results.summary.high }}</div>
+                    <div class="stat-label">High Severity</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <i class="bi bi-speedometer2" style="font-size: 2rem; color: var(--accent-primary);"></i>
+                    <div class="stat-number" style="color: var(--accent-primary);">{{ results.summary.risk_score }}/10</div>
+                    <div class="stat-label">Risk Score</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ARP Poisoning Findings - Collapsible -->
+    {% if results.arp_poisoning %}
+    <div class="col-12 mb-4">
+        <div class="card-section">
+            <div class="card-section-header collapsed" onclick="toggleSection(this, 'arp-section')">
+                <div class="section-title">
+                    <i class="bi bi-radioactive"></i>
+                    ARP Poisoning Detected
+                    <span class="badge badge-critical">{{ results.arp_poisoning|length }} Incidents</span>
+                </div>
+                <i class="bi bi-chevron-down section-toggle collapsed"></i>
+            </div>
+            <div id="arp-section" class="card-section-body">
+                {% for finding in results.arp_poisoning %}
+                <div class="alert alert-danger mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="w-100">
+                            <h6 class="mb-2">
+                                <span class="badge badge-critical me-2">{{ finding.severity }}</span>
+                                MITM Attack via ARP Spoofing
+                            </h6>
+                            <p class="mb-1">
+                                <strong>Target:</strong> {{ finding.ip }} → {{ finding.target_ip }}
+                            </p>
+                            <p class="mb-1">
+                                <strong>MAC Change:</strong> 
+                                <code>{{ finding.old_mac }}</code> → <code>{{ finding.new_mac }}</code>
+                            </p>
+                            <p class="mb-1">
+                                <strong>Duration:</strong> {{ finding.duration }} 
+                                <span class="ms-3"><strong>Packets:</strong> {{ finding.packet_count }}</span>
+                            </p>
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>{{ finding.timestamp }}
+                                <span class="ms-3">
+                                    <i class="bi bi-tag me-1"></i>MITRE ATT&CK: {{ finding.mitre_id }}
+                                </span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- HTTP Credential Exposure - Collapsible -->
+    {% if results.http_credentials %}
+    <div class="col-12 mb-4">
+        <div class="card-section">
+            <div class="card-section-header collapsed" onclick="toggleSection(this, 'http-section')">
+                <div class="section-title">
+                    <i class="bi bi-key"></i>
+                    HTTP Credential Exposure
+                    <span class="badge badge-high">{{ results.http_credentials|length }} Incidents</span>
+                </div>
+                <i class="bi bi-chevron-down section-toggle collapsed"></i>
+            </div>
+            <div id="http-section" class="card-section-body">
+                {% for finding in results.http_credentials %}
+                <div class="alert alert-warning mb-3">
+                    <h6 class="mb-2">
+                        <span class="badge badge-high me-2">{{ finding.severity }}</span>
+                        Plaintext Credentials Captured
+                    </h6>
+                    <p class="mb-1">
+                        <strong>Source:</strong> {{ finding.source_ip }} → {{ finding.destination_ip }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Request:</strong> {{ finding.method }} {{ finding.url }}
+                    </p>
+                    {% if finding.username %}
+                    <p class="mb-1">
+                        <strong>Credentials:</strong> 
+                        <code>{{ finding.username }}</code> : <code>{{ finding.password }}</code>
+                    </p>
+                    {% endif %}
+                    {% if finding.api_key %}
+                    <p class="mb-1">
+                        <strong>API Key:</strong> <code>{{ finding.api_key }}</code>
+                    </p>
+                    {% endif %}
+                    <small class="text-muted">
+                        <i class="bi bi-clock me-1"></i>{{ finding.timestamp }}
+                        <span class="ms-3">
+                            <i class="bi bi-tag me-1"></i>MITRE ATT&CK: {{ finding.mitre_id }}
+                        </span>
+                    </small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- DNS Exfiltration - Collapsible -->
+    {% if results.dns_exfiltration %}
+    <div class="col-12 mb-4">
+        <div class="card-section">
+            <div class="card-section-header collapsed" onclick="toggleSection(this, 'dns-section')">
+                <div class="section-title">
+                    <i class="bi bi-diagram-3"></i>
+                    DNS Exfiltration Detected
+                    <span class="badge badge-medium">{{ results.dns_exfiltration|length }} Incidents</span>
+                </div>
+                <i class="bi bi-chevron-down section-toggle collapsed"></i>
+            </div>
+            <div id="dns-section" class="card-section-body">
+                {% for finding in results.dns_exfiltration %}
+                <div class="alert alert-info mb-3">
+                    <h6 class="mb-2">
+                        <span class="badge badge-medium me-2">{{ finding.severity }}</span>
+                        Suspicious DNS Activity
+                    </h6>
+                    <p class="mb-1">
+                        <strong>Domain:</strong> <code>{{ finding.domain }}</code>
+                    </p>
+                    <p class="mb-1">
+                        <strong>Pattern:</strong> {{ finding.pattern }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Queries:</strong> {{ finding.query_count }}
+                        <span class="ms-3"><strong>Avg Length:</strong> {{ finding.avg_length }} chars</span>
+                        <span class="ms-3"><strong>Entropy:</strong> {{ finding.entropy }}</span>
+                    </p>
+                    <small class="text-muted">
+                        <i class="bi bi-clock me-1"></i>{{ finding.timestamp }}
+                        <span class="ms-3">
+                            <i class="bi bi-tag me-1"></i>MITRE ATT&CK: {{ finding.mitre_id }}
+                        </span>
+                    </small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- No Findings Message -->
+    {% if results.summary.total_findings == 0 %}
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-body text-center" style="padding: 60px 20px;">
+                <i class="bi bi-shield-check" style="font-size: 5rem; color: var(--accent-success); filter: drop-shadow(0 0 30px var(--accent-success));"></i>
+                <h3 class="mt-4 mb-3" style="color: var(--accent-success) !important;">All Clear!</h3>
+                <p class="mb-0" style="font-size: 1.2rem;">No security threats detected in this PCAP file.</p>
+                <div class="mt-4">
+                    <a href="{{ url_for('clear_session') }}" class="btn btn-cyber">
+                        <i class="bi bi-file-earmark-plus me-2"></i>
+                        Analyze Another File
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Attack Timeline - Collapsible -->
+    {% if results.timeline %}
+    <div class="col-12 mb-4">
+        <div class="card-section">
+            <div class="card-section-header collapsed" onclick="toggleSection(this, 'timeline-section')">
+                <div class="section-title">
+                    <i class="bi bi-clock-history"></i>
+                    Attack Timeline
+                    <span class="badge" style="background: linear-gradient(135deg, #7b2cbf, #5a189a); color: white;">{{ results.timeline|length }} Events</span>
+                </div>
+                <i class="bi bi-chevron-down section-toggle collapsed"></i>
+            </div>
+            <div id="timeline-section" class="card-section-body">
+                <div class="timeline">
+                    {% for event in results.timeline %}
+                    <div class="timeline-item mb-3">
+                        <div class="d-flex align-items-start">
+                            <div class="timeline-badge me-3">
+                                {% if event.severity == 'CRITICAL' %}
+                                    <i class="bi bi-circle-fill" style="color: var(--accent-danger);"></i>
+                                {% elif event.severity == 'HIGH' %}
+                                    <i class="bi bi-circle-fill" style="color: var(--accent-warning);"></i>
+                                {% else %}
+                                    <i class="bi bi-circle-fill" style="color: var(--accent-primary);"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <strong>{{ event.event }}</strong>
+                                    <span class="badge badge-{{ event.severity|lower }} ms-2">{{ event.severity }}</span>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>{{ event.time }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Affected Hosts - Collapsible -->
+    {% if results.affected_hosts %}
+    <div class="col-12 mb-4">
+        <div class="card-section">
+            <div class="card-section-header collapsed" onclick="toggleSection(this, 'hosts-section')">
+                <div class="section-title">
+                    <i class="bi bi-hdd-network"></i>
+                    Affected Hosts
+                    <span class="badge" style="background: linear-gradient(135deg, #ff006e, #d90058); color: white;">{{ results.affected_hosts|length }} Hosts</span>
+                </div>
+                <i class="bi bi-chevron-down section-toggle collapsed"></i>
+            </div>
+            <div id="hosts-section" class="card-section-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th><i class="bi bi-hdd me-2"></i>IP Address</th>
+                                <th><i class="bi bi-exclamation-triangle me-2"></i>Threats</th>
+                                <th><i class="bi bi-shield-exclamation me-2"></i>Risk Level</th>
+                                <th><i class="bi bi-wrench me-2"></i>Action Required</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for host in results.affected_hosts %}
+                            <tr>
+                                <td><code>{{ host.ip }}</code></td>
+                                <td>
+                                    <span class="badge" style="background: rgba(255, 0, 110, 0.2); color: var(--accent-danger); border: 1px solid var(--accent-danger);">
+                                        {{ host.threats }} incidents
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if host.risk == 'CRITICAL' %}
+                                        <span class="badge badge-critical">{{ host.risk }}</span>
+                                    {% elif host.risk == 'HIGH' %}
+                                        <span class="badge badge-high">{{ host.risk }}</span>
+                                    {% elif host.risk == 'MEDIUM' %}
+                                        <span class="badge badge-medium">{{ host.risk }}</span>
+                                    {% else %}
+                                        <span class="badge badge-low">{{ host.risk }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <i class="bi bi-search me-1" style="color: var(--accent-primary);"></i>
+                                    Investigate & Monitor
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- MITRE ATT&CK Techniques - Collapsible -->
+    {% if results.summary.total_findings > 0 %}
+    <div class="col-12 mb-4">
+        <div class="card-section">
+            <div class="card-section-header collapsed" onclick="toggleSection(this, 'mitre-section')">
+                <div class="section-title">
+                    <i class="bi bi-diagram-2"></i>
+                    MITRE ATT&CK Framework Mapping
+                    <span class="badge" style="background: linear-gradient(135deg, #06ffa5, #00cc83); color: #0a0e27; font-weight: 700;">
+                        {% set mitre_count = 0 %}
+                        {% if results.arp_poisoning %}{% set mitre_count = mitre_count + 1 %}{% endif %}
+                        {% if results.http_credentials %}{% set mitre_count = mitre_count + 1 %}{% endif %}
+                        {% if results.dns_exfiltration %}{% set mitre_count = mitre_count + 1 %}{% endif %}
+                        {{ mitre_count }} Techniques
+                    </span>
+                </div>
+                <i class="bi bi-chevron-down section-toggle collapsed"></i>
+            </div>
+            <div id="mitre-section" class="card-section-body">
+                <div class="row g-3">
+                    {% if results.arp_poisoning %}
+                    <div class="col-md-6">
+                        <div class="alert alert-danger mb-0" style="transition: all 0.3s ease;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-shield-exclamation me-3" style="font-size: 2rem; color: var(--accent-danger);"></i>
+                                <div style="flex: 1;">
+                                    <h6 class="mb-2">
+                                        <strong style="color: #ff006e !important;">T1557.002</strong>
+                                    </h6>
+                                    <p class="mb-1"><strong>Adversary-in-the-Middle: ARP Cache Poisoning</strong></p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-bullseye me-1"></i>
+                                        <strong>Tactic:</strong> Credential Access, Collection
+                                    </small>
+                                    <div class="mt-2">
+                                        <a href="https://attack.mitre.org/techniques/T1557/002/" target="_blank" class="btn btn-sm" style="background: rgba(255, 0, 110, 0.2); color: var(--accent-danger); border: 1px solid var(--accent-danger);">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>
+                                            View Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if results.http_credentials %}
+                    <div class="col-md-6">
+                        <div class="alert alert-warning mb-0" style="transition: all 0.3s ease;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-eye me-3" style="font-size: 2rem; color: var(--accent-warning);"></i>
+                                <div style="flex: 1;">
+                                    <h6 class="mb-2">
+                                        <strong style="color: #ffbe0b !important;">T1040</strong>
+                                    </h6>
+                                    <p class="mb-1"><strong>Network Sniffing</strong></p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-bullseye me-1"></i>
+                                        <strong>Tactic:</strong> Credential Access, Discovery
+                                    </small>
+                                    <div class="mt-2">
+                                        <a href="https://attack.mitre.org/techniques/T1040/" target="_blank" class="btn btn-sm" style="background: rgba(255, 190, 11, 0.2); color: var(--accent-warning); border: 1px solid var(--accent-warning);">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>
+                                            View Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if results.dns_exfiltration %}
+                    <div class="col-md-6">
+                        <div class="alert alert-info mb-0" style="transition: all 0.3s ease;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-cloud-upload me-3" style="font-size: 2rem; color: var(--accent-primary);"></i>
+                                <div style="flex: 1;">
+                                    <h6 class="mb-2">
+                                        <strong style="color: #00f0ff !important;">T1048.003</strong>
+                                    </h6>
+                                    <p class="mb-1"><strong>Exfiltration Over Alternative Protocol: DNS</strong></p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-bullseye me-1"></i>
+                                        <strong>Tactic:</strong> Exfiltration
+                                    </small>
+                                    <div class="mt-2">
+                                        <a href="https://attack.mitre.org/techniques/T1048/003/" target="_blank" class="btn btn-sm" style="background: rgba(0, 240, 255, 0.2); color: var(--accent-primary); border: 1px solid var(--accent-primary);">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>
+                                            View Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-md-6">
+                        <div class="alert alert-success mb-0" style="transition: all 0.3s ease;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-book me-3" style="font-size: 2rem; color: var(--accent-success);"></i>
+                                <div style="flex: 1;">
+                                    <h6 class="mb-2">
+                                        <strong style="color: #06ffa5 !important;">Learn More</strong>
+                                    </h6>
+                                    <p class="mb-1">Explore the complete MITRE ATT&CK Framework for detailed mitigation strategies and threat intelligence.</p>
+                                    <div class="mt-2">
+                                        <a href="https://attack.mitre.org/" target="_blank" class="btn btn-sm" style="background: rgba(6, 255, 165, 0.2); color: var(--accent-success); border: 1px solid var(--accent-success);">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>
+                                            MITRE ATT&CK Framework
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Analysis Summary Card -->
+    <div class="col-12">
+        <div class="card" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.05), rgba(123, 44, 191, 0.05)); border: 2px solid var(--border-color);">
+            <div class="card-body text-center" style="padding: 40px;">
+                <i class="bi bi-shield-check" style="font-size: 3rem; color: var(--accent-primary); filter: drop-shadow(0 0 20px var(--accent-primary));"></i>
+                <h4 class="mt-3 mb-3" style="color: var(--accent-primary) !important;">Analysis Complete</h4>
+                <p class="mb-4" style="font-size: 1.1rem;">
+                    Analyzed <strong>{{ results.summary.total_packets }}</strong> packets in <strong>{{ results.summary.analysis_duration }}</strong>
+                </p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a href="{{ url_for('report') }}" class="btn btn-cyber">
+                        <i class="bi bi-file-earmark-pdf me-2"></i>
+                        Download Report
+                    </a>
+                    <a href="{{ url_for('clear_session') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise me-2"></i>
+                        Analyze New File
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle collapsible sections
+function toggleSection(header, sectionId) {
+    const section = document.getElementById(sectionId);
+    const toggle = header.querySelector('.section-toggle');
+    
+    if (section.classList.contains('show')) {
+        section.classList.remove('show');
+        header.classList.add('collapsed');
+        toggle.classList.add('collapsed');
+    } else {
+        section.classList.add('show');
+        header.classList.remove('collapsed');
+        toggle.classList.remove('collapsed');
+    }
+}
+
+// Auto-expand and collapse sections
+document.addEventListener('DOMContentLoaded', function() {
+    const sectionHeaders = document.querySelectorAll('.card-section-header');
+    
+    // Auto-expand all sections initially after 500ms
+    setTimeout(() => {
+        sectionHeaders.forEach(header => {
+            const onclickAttr = header.getAttribute('onclick');
+            if (onclickAttr) {
+                const match = onclickAttr.match(/'([^']+)'/);
+                if (match) {
+                    const sectionId = match[1];
+                    const section = document.getElementById(sectionId);
+                    const toggle = header.querySelector('.section-toggle');
+                    
+                    if (section && header.classList.contains('collapsed')) {
+                        section.classList.add('show');
+                        header.classList.remove('collapsed');
+                        toggle.classList.remove('collapsed');
+                    }
+                }
+            }
+        });
+    }, 500);
+    
+    // Auto-collapse after 10 seconds
+    setTimeout(() => {
+        sectionHeaders.forEach(header => {
+            const onclickAttr = header.getAttribute('onclick');
+            if (onclickAttr) {
+                const match = onclickAttr.match(/'([^']+)'/);
+                if (match) {
+                    const sectionId = match[1];
+                    const section = document.getElementById(sectionId);
+                    const toggle = header.querySelector('.section-toggle');
+                    
+                    if (section && section.classList.contains('show')) {
+                        section.classList.remove('show');
+                        header.classList.add('collapsed');
+                        toggle.classList.add('collapsed');
+                    }
+                }
+            }
+        });
+    }, 10000);
+    
+    // Add smooth scroll to top button
+    const scrollBtn = document.createElement('button');
+    scrollBtn.innerHTML = '<i class="bi bi-arrow-up"></i>';
+    scrollBtn.className = 'scroll-to-top';
+    scrollBtn.style.cssText = `
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        transition: all 0.3s ease;
+    `;
+    
+    document.body.appendChild(scrollBtn);
+    
+    // Show/hide scroll button
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+            scrollBtn.style.display = 'flex';
+            scrollBtn.style.alignItems = 'center';
+            scrollBtn.style.justifyContent = 'center';
+        } else {
+            scrollBtn.style.display = 'none';
+        }
+    });
+    
+    // Scroll to top on click
+    scrollBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
+    
+    // Hover effects
+    scrollBtn.addEventListener('mouseenter', () => {
+        scrollBtn.style.transform = 'translateY(-5px) scale(1.1)';
+    });
+    
+    scrollBtn.addEventListener('mouseleave', () => {
+        scrollBtn.style.transform = 'translateY(0) scale(1)';
+    });
+    
+    // Add animation to stat cards
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach((card, index) => {
+        card.style.animation = `slideInUp 0.6s ease ${index * 0.1}s both`;
+    });
+    
+    // Add counter animation to stat numbers
+    const statNumbers = document.querySelectorAll('.stat-number');
+    statNumbers.forEach(number => {
+        const text = number.textContent.trim();
+        const hasSlash = text.includes('/10');
+        const finalValue = parseFloat(text);
+        
+        if (isNaN(finalValue)) return;
+        
+        let currentValue = 0;
+        const increment = finalValue / 50;
+        const isDecimal = text.includes('.');
+        
+        const counter = setInterval(() => {
+            currentValue += increment;
+            if (currentValue >= finalValue) {
+                if (hasSlash) {
+                    number.textContent = finalValue.toFixed(1) + '/10';
+                } else {
+                    number.textContent = isDecimal ? finalValue.toFixed(1) : Math.round(finalValue);
+                }
+                clearInterval(counter);
+            } else {
+                if (hasSlash) {
+                    number.textContent = currentValue.toFixed(1) + '/10';
+                } else {
+                    number.textContent = isDecimal ? currentValue.toFixed(1) : Math.round(currentValue);
+                }
+            }
+        }, 30);
+    });
+});
+
+// Add CSS animation keyframes
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

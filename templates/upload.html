@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Upload PCAP - NetGuardian{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Header -->
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold mb-3" style="color: var(--accent-primary);">
+                <span class="shield-icon">🛡️</span>
+                NetGuardian
+            </h1>
+            <p class="lead text-secondary">
+                Advanced Network Threat Detection & Analysis Platform
+            </p>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-cloud-upload me-2"></i>
+                    PCAP File Upload
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Upload Area -->
+                <div id="upload-area" class="upload-area">
+                    <div class="upload-icon">
+                        <i class="bi bi-cloud-upload"></i>
+                    </div>
+                    <div class="upload-text">
+                        <strong>Drag & Drop PCAP File Here</strong>
+                    </div>
+                    <div class="upload-hint">
+                        or click to browse (.pcap, .pcapng files only)
+                    </div>
+                </div>
+
+                <!-- Hidden File Input -->
+                <input type="file" id="file-input" accept=".pcap,.pcapng" style="display: none;">
+
+                <!-- File Information (Hidden initially) -->
+                <div id="file-info" class="file-selected" style="display: none;">
+                    <i class="bi bi-file-earmark-check-fill"></i>
+                    <div class="file-name" id="file-name"></div>
+                    <div class="file-size" id="file-size"></div>
+                    <div class="file-status">
+                        <i class="bi bi-check-circle-fill"></i>
+                        File Ready for Analysis
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="button-group mt-4 text-center">
+                    <button id="browse-btn" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-folder-open me-2"></i>
+                        Browse Files
+                    </button>
+                    <button id="analyze-btn" class="btn btn-cyber" disabled>
+                        <i class="bi bi-search me-2"></i>
+                        Start Analysis
+                    </button>
+                </div>
+
+                <!-- Messages -->
+                <div id="error-message" class="message error-message" style="display: none;">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <span id="error-text"></span>
+                </div>
+
+                <div id="success-message" class="message success-message" style="display: none;">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span id="success-text"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="row g-3 mt-4">
+            <div class="col-md-3 col-sm-6">
+                <div class="feature-card">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <h3>ARP Poisoning</h3>
+                    <p>Detect MITM attacks</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="feature-card">
+                    <i class="bi bi-key-fill"></i>
+                    <h3>Credentials</h3>
+                    <p>Find exposed data</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="feature-card">
+                    <i class="bi bi-diagram-3-fill"></i>
+                    <h3>DNS Analysis</h3>
+                    <p>Detect exfiltration</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="feature-card">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <h3>Risk Scoring</h3>
+                    <p>MITRE ATT&CK</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6 class="mb-3" style="color: var(--accent-primary);">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Quick Guide
+                </h6>
+                <ol class="text-secondary mb-0">
+                    <li>Upload a PCAP file (max 100MB)</li>
+                    <li>Wait for "File Ready" confirmation</li>
+                    <li>Click "Start Analysis" button</li>
+                    <li>View detailed security findings</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay (Hidden initially) -->
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">
+        <i class="bi bi-gear-fill me-2"></i>
+        Analyzing Network Traffic...
+    </div>
+    <div class="text-secondary mt-3" style="font-size: 1rem;">
+        This may take a few moments
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    const browseBtn = document.getElementById('browse-btn');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const errorMessage = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const successMessage = document.getElementById('success-message');
+    const successText = document.getElementById('success-text');
+    const loadingOverlay = document.getElementById('loading-overlay');
+
+    let selectedFile = null;
+
+    // Browse button click
+    browseBtn.addEventListener('click', () => fileInput.click());
+
+    // Upload area click
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    // File input change
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('drag-over');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        if (e.dataTransfer.files.length > 0) {
+            handleFileSelect(e.dataTransfer.files[0]);
+        }
+    });
+
+    // Analyze button click
+    analyzeBtn.addEventListener('click', () => {
+        if (selectedFile) {
+            uploadAndAnalyze(selectedFile);
+        }
+    });
+
+    function handleFileSelect(file) {
+        clearMessages();
+
+        // Validate file extension
+        const validExtensions = ['pcap', 'pcapng'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        if (!validExtensions.includes(fileExtension)) {
+            showError('Invalid file type. Only .pcap and .pcapng files are allowed.');
+            return;
+        }
+
+        // Validate file size (100MB)
+        const maxSize = 100 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showError('File too large. Maximum size is 100MB.');
+            return;
+        }
+
+        // File is valid - store and display
+        selectedFile = file;
+        
+        // Hide upload area, show file info
+        uploadArea.style.display = 'none';
+        fileInfo.style.display = 'block';
+        
+        // Display file details
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        
+        // Enable analyze button
+        analyzeBtn.disabled = false;
+        
+        // Show success message
+        showSuccess('File uploaded successfully! Click "Start Analysis" to begin.');
+    }
+
+    function uploadAndAnalyze(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Disable analyze button and show loading
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = '<span class="analyzing-spinner me-2"></span>Uploading...';
+        loadingOverlay.style.display = 'flex';
+
+        clearMessages();
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                loadingOverlay.style.display = 'none';
+                showError(data.error);
+                resetAnalyzeButton();
+            } else {
+                // Show success briefly, then redirect
+                showSuccess(data.message + ' Redirecting to dashboard...');
+                setTimeout(() => {
+                    window.location.href = data.redirect || '/dashboard';
+                }, 1500);
+            }
+        })
+        .catch(error => {
+            loadingOverlay.style.display = 'none';
+            showError('Upload failed: ' + error.message);
+            resetAnalyzeButton();
+        });
+    }
+
+    function showError(message) {
+        errorText.textContent = message;
+        errorMessage.style.display = 'flex';
+        setTimeout(() => {
+            errorMessage.style.display = 'none';
+        }, 5000);
+    }
+
+    function showSuccess(message) {
+        successText.textContent = message;
+        successMessage.style.display = 'flex';
+    }
+
+    function clearMessages() {
+        errorMessage.style.display = 'none';
+        successMessage.style.display = 'none';
+    }
+
+    function resetAnalyzeButton() {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="bi bi-search me-2"></i>Start Analysis';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+});
+</script>
+{% endblock %}

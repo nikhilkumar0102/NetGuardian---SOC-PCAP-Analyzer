@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}Security Report - NetGuardian{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    @page {
+        size: A4;
+        margin: 15mm;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .particles, .navbar, footer, .btn, .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        page-break-inside: avoid;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        margin-bottom: 20px !important;
+        background: white !important;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #4a90e2, #5c6ac4) !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .alert {
+        page-break-inside: avoid;
+        border: 2px solid !important;
+    }
+    
+    .badge {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    code {
+        background: #f5f5f5 !important;
+        color: #333 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    h1, h2, h3, h4, h5, h6, p, span, div, td, th, li, strong {
+        color: black !important;
+    }
+    
+    .text-muted {
+        color: #666 !important;
+    }
+}
+
+.report-header {
+    background: var(--gradient-cyber);
+    padding: 40px;
+    border-radius: 20px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.report-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: white !important;
+    margin-bottom: 15px;
+}
+
+.report-meta {
+    color: white !important;
+    font-size: 1.1rem;
+}
+
+.report-meta i {
+    color: var(--accent-success);
+}
+
+.section-header {
+    background: var(--gradient-purple);
+    padding: 15px 25px;
+    border-radius: 15px;
+    margin: 30px 0 20px 0;
+}
+
+.section-header h3 {
+    color: white !important;
+    margin: 0;
+    font-weight: 700;
+}
+
+.finding-table {
+    width: 100%;
+    margin: 20px 0;
+}
+
+.finding-table th {
+    background: var(--bg-card);
+    padding: 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.finding-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <!-- Report Header -->
+        <div class="report-header no-print">
+            <div class="report-title">
+                <i class="bi bi-file-earmark-text me-3"></i>
+                Network Security Analysis Report
+            </div>
+            <div class="report-meta">
+                <i class="bi bi-calendar-check me-2"></i>
+                Generated: {{ file_info.upload_time }}
+            </div>
+        </div>
+
+        <!-- Print Header (only shows when printing) -->
+        <div style="display: none;" class="print-only">
+            <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: #f0f0f0;">
+                <h1 style="color: #333 !important; margin: 0;">Network Security Analysis Report</h1>
+                <p style="color: #666 !important; margin: 10px 0 0 0;">NetGuardian v1.0 - SOC Analysis Platform</p>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="text-end mb-4 no-print">
+            <button onclick="window.print()" class="btn btn-cyber me-2">
+                <i class="bi bi-printer me-2"></i>
+                Download PDF
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-2"></i>
+                Back to Dashboard
+            </a>
+            <a href="{{ url_for('clear_session') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-file-earmark-plus me-2"></i>
+                New Analysis
+            </a>
+        </div>
+
+        <!-- File Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-binary me-2"></i>
+                    File Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>File:</strong> {{ file_info.filename }}</p>
+                        <p class="mb-2"><strong>Size:</strong> {{ file_info.size_mb }} MB</p>
+                        <p class="mb-0"><strong>Packets:</strong> {{ results.summary.total_packets }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Analysis Time:</strong> {{ file_info.upload_time }}</p>
+                        <p class="mb-2"><strong>Duration:</strong> {{ results.summary.analysis_duration }}</p>
+                        <p class="mb-0"><strong>Risk Score:</strong> <span class="badge badge-{{ 'critical' if results.summary.risk_score >= 8 else 'high' if results.summary.risk_score >= 6 else 'medium' }}">{{ results.summary.risk_score }}/10</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="section-header">
+            <h3><i class="bi bi-clipboard-data me-2"></i>Executive Summary</h3>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="mb-3" style="color: var(--accent-danger);">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Key Findings:
+                </h6>
+                <ul style="color: white !important;">
+                    <li><strong>ARP Poisoning:</strong> {{ results.arp_poisoning|length }} incidents of Man-in-the-Middle attacks detected</li>
+                    <li><strong>Credential Exposure:</strong> {{ results.http_credentials|length }} instances of plaintext credentials captured</li>
+                    <li><strong>DNS Exfiltration:</strong> {{ results.dns_exfiltration|length }} suspicious DNS tunneling patterns identified</li>
+                    <li><strong>Affected Systems:</strong> {{ results.affected_hosts|length }} hosts compromised</li>
+                </ul>
+
+                <h6 class="mt-4 mb-3" style="color: var(--accent-info);">
+                    <i class="bi bi-shield-check me-2"></i>
+                    Recommended Actions:
+                </h6>
+                <ol style="color: white !important;">
+                    <li><strong>Immediate:</strong> Investigate compromised hosts ({{ results.affected_hosts|length }} systems)</li>
+                    <li><strong>Network Security:</strong> Enable Dynamic ARP Inspection (DAI) on network switches</li>
+                    <li><strong>Application Security:</strong> Enforce HTTPS-only policies for all web applications</li>
+                    <li><strong>DNS Security:</strong> Implement DNS sinkholing and monitoring for known malicious domains</li>
+                    <li><strong>Incident Response:</strong> Review and update incident response procedures</li>
+                    <li><strong>User Training:</strong> Conduct security awareness training on credential protection</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- HTTP Credential Exposure -->
+        {% if results.http_credentials %}
+        <div class="section-header">
+            <h3><i class="bi bi-key me-2"></i>HTTP Credential Exposure ({{ results.http_credentials|length }} Incidents)</h3>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="finding-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Source IP</th>
+                            <th>Destination</th>
+                            <th>Method</th>
+                            <th>Credentials</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for finding in results.http_credentials %}
+                        <tr>
+                            <td><span class="badge badge-high">{{ finding.severity }}</span></td>
+                            <td><code>{{ finding.source_ip }}</code></td>
+                            <td><code>{{ finding.destination_ip }}</code></td>
+                            <td>{{ finding.method }}</td>
+                            <td>
+                                {% if finding.username %}
+                                <code>{{ finding.username }}</code> : <code>{{ finding.password }}</code>
+                                {% elif finding.api_key %}
+                                API Key: <code>{{ finding.api_key }}</code>
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- DNS Exfiltration Analysis -->
+        {% if results.dns_exfiltration %}
+        <div class="section-header">
+            <h3><i class="bi bi-diagram-3 me-2"></i>DNS Exfiltration Analysis ({{ results.dns_exfiltration|length }} Incidents)</h3>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="finding-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Domain</th>
+                            <th>Pattern</th>
+                            <th>Queries</th>
+                            <th>Entropy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for finding in results.dns_exfiltration %}
+                        <tr>
+                            <td><span class="badge badge-{{ finding.severity|lower }}">{{ finding.severity }}</span></td>
+                            <td><code>{{ finding.domain }}</code></td>
+                            <td>{{ finding.pattern }}</td>
+                            <td>{{ finding.query_count }}</td>
+                            <td>{{ finding.entropy }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Affected Systems -->
+        {% if results.affected_hosts %}
+        <div class="section-header">
+            <h3><i class="bi bi-hdd-network me-2"></i>Affected Systems ({{ results.affected_hosts|length }} Hosts)</h3>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="finding-table">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Threat Count</th>
+                            <th>Risk Level</th>
+                            <th>Action Required</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for host in results.affected_hosts %}
+                        <tr>
+                            <td><code>{{ host.ip }}</code></td>
+                            <td>{{ host.threats }}</td>
+                            <td><span class="badge badge-{{ host.risk|lower }}">{{ host.risk }}</span></td>
+                            <td>Monitor & Review</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- MITRE ATT&CK Framework -->
+        <div class="section-header">
+            <h3><i class="bi bi-shield-exclamation me-2"></i>MITRE ATT&CK Framework Mapping</h3>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="alert alert-warning">
+                            <h6><strong>T1040</strong></h6>
+                            <p class="mb-0">Network Sniffing</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-info">
+                            <h6><strong>T1048.003</strong></h6>
+                            <p class="mb-0">Exfiltration Over Alternative Protocol: DNS</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-5 mb-4" style="padding: 20px; background: var(--bg-card); border-radius: 15px;">
+            <p class="mb-2">
+                <i class="bi bi-shield-check" style="color: var(--accent-success);"></i>
+                <strong>Generated by NetGuardian v1.0 - SOC Network Analysis Platform</strong>
+            </p>
+            <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                Report Date: {{ file_info.upload_time }}
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .print-only {
+        display: block !important;
+    }
+}
+</style>
+{% endblock %}
