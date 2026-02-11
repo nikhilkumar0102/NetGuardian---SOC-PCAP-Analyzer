@@ -18,3 +18,8 @@ python-dateutil==2.8.2
 # Development (optional but recommended)
 pylint==3.0.3
 autopep8==2.0.4
+
+# RAG & AI
+sentence-transformers==2.2.2
+scikit-learn==1.3.2
+numpy==1.26.2
