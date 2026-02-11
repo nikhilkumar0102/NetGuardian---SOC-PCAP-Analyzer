@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Live Monitor - NetGuardian{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card bg-dark text-white border-0 shadow-lg"
+            style="background: linear-gradient(145deg, #1a1a2e, #16213e);">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-1"><i class="bi bi-activity me-2 text-danger"></i>Live Traffic Monitor
+                        </h2>
+                        <p class="text-muted mb-0">Real-time packet capture and threat analysis</p>
+                    </div>
+                    <div>
+                        <div id="status-indicator" class="badge rounded-pill bg-secondary px-3 py-2 mb-2">
+                            <span class="spinner-grow spinner-grow-sm me-1 d-none" role="status"
+                                aria-hidden="true"></span>
+                            <span id="status-text">STOPPED</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="d-grid gap-2 d-md-block">
+                            <button id="btn-start" class="btn btn-success me-2" onclick="startCapture()">
+                                <i class="bi bi-play-fill me-1"></i> Start Monitor
+                            </button>
+                            <button id="btn-stop" class="btn btn-danger me-2" onclick="stopCapture()" disabled>
+                                <i class="bi bi-stop-fill me-1"></i> Stop Monitor
+                            </button>
+                            <a href="http://localhost:8000" target="_blank" id="btn-target"
+                                class="btn btn-outline-info disabled">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Open Proxy Target
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <small class="text-muted d-block">Proxy: localhost:8000 &rarr; localhost:5001</small>
+                        <small class="text-info" id="packet-counter">Packets Captured: 0</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Stats Grid -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100 cyber-card">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase mb-2">Threat Score</h6>
+                <div class="display-4 fw-bold text-success" id="risk-score">0.0</div>
+                <div class="progress mt-3" style="height: 6px;">
+                    <div id="risk-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 cyber-card">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase mb-2">Critical Alerts</h6>
+                <div class="display-4 fw-bold text-danger" id="critical-count">0</div>
+                <small class="text-muted">ARP Poisoning & Attacks</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 cyber-card">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase mb-2">Suspicious Activities</h6>
+                <div class="display-4 fw-bold text-warning" id="warning-count">0</div>
+                <small class="text-muted">Creds & DNS Exfil</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Log -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-terminal me-2"></i>Live Alert Feed</h5>
+                <span class="badge bg-dark" id="last-updated">Waiting...</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover table-dark mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Source</th>
+                                <th>Details</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alert-feed">
+                            <!-- Dynamic Content -->
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No alerts detected yet. Start the monitor.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let updateInterval = null;
+
+    function startCapture() {
+        fetch('/live/start', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started' || data.status === 'already_running') {
+                    setRunningState(true);
+                    startPolling();
+                } else {
+                    alert('Error starting capture: ' + data.message);
+                }
+            });
+    }
+
+    function stopCapture() {
+        fetch('/live/stop', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                setRunningState(false);
+                stopPolling();
+            });
+    }
+
+    function setRunningState(isRunning) {
+        const statusText = document.getElementById('status-text');
+        const indicator = document.getElementById('status-indicator');
+        const spinner = indicator.querySelector('.spinner-grow');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        const btnTarget = document.getElementById('btn-target');
+
+        if (isRunning) {
+            statusText.innerText = 'MONITORING';
+            indicator.classList.remove('bg-secondary');
+            indicator.classList.add('bg-danger');
+            spinner.classList.remove('d-none');
+            btnStart.disabled = true;
+            btnStop.disabled = false;
+            btnTarget.classList.remove('disabled');
+        } else {
+            statusText.innerText = 'STOPPED';
+            indicator.classList.add('bg-secondary');
+            indicator.classList.remove('bg-danger');
+            spinner.classList.add('d-none');
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            btnTarget.classList.add('disabled');
+        }
+    }
+
+    function startPolling() {
+        if (updateInterval) clearInterval(updateInterval);
+        updateInterval = setInterval(fetchData, 2000); // Poll every 2 seconds
+    }
+
+    function stopPolling() {
+        if (updateInterval) clearInterval(updateInterval);
+        updateInterval = null;
+    }
+
+    function fetchData() {
+        fetch('/live/data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) return; // File might not exist yet
+                updateDashboard(data);
+            });
+    }
+
+    function updateDashboard(data) {
+        // Update Stats
+        document.getElementById('packet-counter').innerText = `Packets Captured: ${data.summary.total_packets}`;
+        document.getElementById('risk-score').innerText = data.summary.risk_score;
+        document.getElementById('critical-count').innerText = data.summary.critical;
+        document.getElementById('warning-count').innerText = data.summary.high + data.summary.medium;
+        document.getElementById('last-updated').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
+
+        // Update Risk Bar Color
+        const score = data.summary.risk_score;
+        const bar = document.getElementById('risk-bar');
+        bar.style.width = `${score * 10}%`;
+        bar.className = `progress-bar bg-${score > 7 ? 'danger' : score > 4 ? 'warning' : 'success'}`;
+
+        // Update Feed
+        const feed = document.getElementById('alert-feed');
+        feed.innerHTML = '';
+
+        const allFindings = [
+            ...data.arp_poisoning.map(f => ({ ...f, type: 'ARP Poisoning', severity: 'Critical', time: 'Now' })),
+            ...data.http_credentials.map(f => ({ ...f, type: 'Cred Exposure', severity: 'High', time: 'Now' })),
+            ...data.dns_exfiltration.map(f => ({ ...f, type: 'DNS Exfiltration', severity: 'Medium', time: 'Now' }))
+        ];
+
+        if (allFindings.length === 0) {
+            feed.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No threats detected yet.</td></tr>';
+            return;
+        }
+
+        allFindings.forEach(f => {
+            let details = '';
+            if (f.type === 'ARP Poisoning') details = `${f.mac} claims ${f.ip}`;
+            if (f.type === 'Cred Exposure') details = `User: ${f.username || 'N/A'} -> ${f.destination_ip}`;
+            if (f.type === 'DNS Exfiltration') details = `Domain: ${f.domain} (${f.query_count} queries)`;
+
+            const row = `
+            <tr>
+                <td><small class="text-muted">${f.time}</small></td>
+                <td><span class="badge bg-secondary">${f.type}</span></td>
+                <td><code class="text-light">${f.source_ip || f.src_ip || 'Local'}</code></td>
+                <td>${details}</td>
+                <td><span class="badge bg-${f.severity === 'Critical' ? 'danger' : f.severity === 'High' ? 'warning' : 'info'}">${f.severity}</span></td>
+            </tr>
+        `;
+            feed.insertAdjacentHTML('afterbegin', row);
+        });
+    }
+</script>
+
+<style>
+    .cyber-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+</style>
+{% endblock %}

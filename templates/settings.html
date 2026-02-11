@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - NetGuardian{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0" style="color: var(--text-primary);">
+                <i class="bi bi-gear-fill me-2"></i>Settings
+            </h2>
+        </div>
+
+        <div class="card cyber-card">
+            <div class="card-header bg-transparent border-bottom border-secondary py-3">
+                <h5 class="mb-0 overflow-hidden"><i class="bi bi-Cpu me-2"></i>AI & Threat Intelligence</h5>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('settings') }}" method="POST">
+
+                    <div class="mb-4">
+                        <label class="form-label d-flex justify-content-between">
+                            <span>VirusTotal API Key</span>
+                            <span class="badge bg-secondary">IOC Lookup</span>
+                        </label>
+                        <div class="input-group cyber-input-group">
+                            <span class="input-group-text"><i class="bi bi-shield-check"></i></span>
+                            <input type="password" class="form-control cyber-input" name="vt_api_key"
+                                value="{{ session.get('vt_api_key', '') }}" placeholder="Enter VirusTotal API Key">
+                        </div>
+                        <div class="form-text text-secondary">Used to check file hashes and IP reputation.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label d-flex justify-content-between">
+                            <span>AI Provider</span>
+                            <span class="badge bg-primary">Report Generation</span>
+                        </label>
+                        <select class="form-select cyber-input" name="ai_provider">
+                            <option value="gemini" {% if session.get('ai_provider')=='gemini' %}selected{% endif %}>
+                                Google Gemini</option>
+                            <option value="openai" {% if session.get('ai_provider')=='openai' %}selected{% endif %}>
+                                OpenAI (Great for detailed reports)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label d-flex justify-content-between">
+                            <span>AI API Key</span>
+                        </label>
+                        <div class="input-group cyber-input-group">
+                            <span class="input-group-text"><i class="bi bi-robot"></i></span>
+                            <input type="password" class="form-control cyber-input" name="ai_api_key"
+                                value="{{ session.get('ai_api_key', '') }}"
+                                placeholder="Enter Gemini or OpenAI API Key">
+                        </div>
+                        <div class="form-text text-secondary">Used to generate executive summaries and mitigation
+                            strategies.</div>
+                    </div>
+
+                    <!-- Remote Sensor Section -->
+                    <div class="mb-4 border-top border-secondary pt-4">
+                        <label class="form-label d-flex justify-content-between">
+                            <span>Remote Sensor Agent</span>
+                            <span class="badge bg-success">Any Device</span>
+                        </label>
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-body">
+                                <p class="small text-muted mb-2">Run this agent on Linux/Windows/Mac to stream traffic
+                                    to NetGuardian.</p>
+
+                                <h6 class="text-info mt-3">1. Prerequisites</h6>
+                                <pre class="bg-black p-2 rounded text-light small">pip install scapy requests</pre>
+
+                                <h6 class="text-info mt-3">2. Download Agent</h6>
+                                <a href="{{ url_for('static', filename='remote_agent.py') }}"
+                                    class="btn btn-sm btn-outline-cyber mb-2">
+                                    <i class="bi bi-download me-2"></i>Download remote_agent.py
+                                </a>
+
+                                <h6 class="text-info mt-3">3. Run Command</h6>
+                                <p class="text-muted small mb-1">Replace <code>MyDevice</code> with a unique name.</p>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control bg-black text-light border-secondary"
+                                        readonly
+                                        value="python remote_agent.py --server {{ request.url_root.rstrip('/') }} --key {{ session.get('api_access_key', 'secret') }} --name MyDevice">
+                                    <button class="btn btn-secondary" type="button"
+                                        onclick="navigator.clipboard.writeText(this.previousElementSibling.value)">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-cyber">
+                            <i class="bi bi-save me-2"></i>Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
